@@ -1,7 +1,8 @@
 #![allow(non_snake_case)]
 
-use dioxus::prelude::*;
 use chrono::{DateTime, Utc};
+use chrono::serde::ts_seconds;
+use dioxus::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -48,7 +49,6 @@ pub struct StoryItem {
     pub r#type: String,
 }
 
-
 fn main() {
     dioxus_desktop::launch(App);
 }
@@ -56,30 +56,86 @@ fn main() {
 fn App(cx: Scope) -> Element {
     render! {
         StoryListing {
-
+            story: StoryItem {
+                id: 0,
+                title: "hello hackernews".to_string(),
+                url: None,
+                text: None,
+                by: "Author".to_string(),
+                score: 0,
+                descendants: 0,
+                time: chrono::Utc::now(),
+                kids: vec![],
+                r#type: "".to_string(),
+            }
         }
     }
 }
 
 #[inline_props]
 fn StoryListing(cx: Scope, story: StoryItem) -> Element {
-    let title = "title";
-    let by = "author";
-    let score = 0;
-    let time = chrono::Utc::now();
-    let comments = "comments";
+    let StoryItem {
+        title,
+        url,
+        by,
+        score,
+        time,
+        kids,
+        ..
+    } = story;
 
-    render! {
-        div {
-            padding: ".5rem",
-            background: "#242424",
-            color: "#eeee",
-            border_radius: "9px",
-            border: "none",
-            box_shadow: "0 1rem 1rem 0 rgba(0, 0, 0, .2)",
-            font_family: "monospace",
-            font_weight: "600",
-            "{title} by {by} ({score}) {time} {comments}"
+    let url = url.as_deref().unwrap_or_default();
+    let hostname = url
+        .trim_start_matches("https://")
+        .trim_start_matches("http://")
+        .trim_start_matches("www.");
+
+    let score = format!("{score} {}", if *score == 1 { " point" } else { " points" });
+    let comments = format!(
+        "{} {}",
+        kids.len(),
+        if kids.len() == 1 {
+            " comment"
+        } else {
+            " comments"
         }
-    }
+    );
+
+    let time = time.format("%D %l:%M %p");
+
+    cx.render(rsx! {
+        div {
+           padding: ".7rem",
+            position: "relative",
+            div {
+                font_size: "1.7rem",
+                a {
+                    href: url,
+                    "{title}"
+                }
+                a {
+                    color: "gray",
+                    href: "https://news.ycombinator.com/from?site={hostname}",
+                    text_decoration: "none",
+                    " ({hostname})"
+                }
+            }
+            div {
+                display: "flex",
+                flex_direction: "row",
+                color: "gray",
+                div {
+                    "{score}"
+                }
+                div {
+                    padding_left: ".5rem",
+                    "by {by}"
+                }
+                div {
+                    padding_left: ".5rem",
+                    "{comments}"
+                }
+            }
+        }
+    })
 }
