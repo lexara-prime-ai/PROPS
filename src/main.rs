@@ -55,15 +55,18 @@ fn main() {
 }
 
 fn App(cx: Scope) -> Element {
+    // Use state hook -> use global/shared state
+    use_shared_state_provider(cx, || PreviewState::Unset);
+
     cx.render(rsx! {
         div {
             display: "flex",
             flex_direction: "row",
-            align_items: "center",
+            align_items: "flex-start",
             width: "100%",
             background: "#eeee",
-            border_radius: "10px",
-            box_shadow: "0 1rem 1rem 0 rgba(0, 0, 0, .2)",
+            border_radius: "5px",
+            box_shadow: "0 .3rem .4rem 0 rgba(0, 0, 0, .1)",
             div {
                 width: "50%",
                 Stories {}
@@ -78,6 +81,7 @@ fn App(cx: Scope) -> Element {
 
 #[inline_props]
 fn StoryListing(cx: Scope, story: StoryItem) -> Element {
+    let preview_state = use_shared_state::<PreviewState>(cx).unwrap();
     let StoryItem {
         title,
         url,
@@ -110,10 +114,24 @@ fn StoryListing(cx: Scope, story: StoryItem) -> Element {
         div {
             padding: "0.5rem",
             position: "relative",
+            onmouseenter: move |_event| {
+              // Implementation
+                *preview_state.write() = PreviewState::Loaded(StoryPageData {
+                    item: story.clone(),
+                    comments: vec![],
+                });
+            },
             div {
                 font_size: "1.5rem",
                 a {
                     href: url,
+                    onfocus: move |_event| {
+                        // Implementation
+                        *preview_state.write() = PreviewState::Loaded(StoryPageData {
+                            item: story.clone(),
+                            comments: vec![],
+                        });
+                    },
                     "{title}"
                 }
                 a {
@@ -175,8 +193,8 @@ enum PreviewState {
 
 
 fn Preview(cx: Scope) -> Element {
-    let preview_state = PreviewState::Unset;
-    match preview_state {
+    let preview_state = use_shared_state::<PreviewState>(cx)?;
+    match &*preview_state.read() {
         PreviewState::Unset => render! {
             "Hover over a story to preview it here..."
         },
