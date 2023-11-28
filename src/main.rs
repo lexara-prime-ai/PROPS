@@ -245,3 +245,8 @@ fn Comment(cx: Scope, comment: Comment) -> Element<'a> {
         }
     }
 }
+
+// Fetching data
+use futures::future::join_all;
+
+pub static BASE_API_URL: &str = "https://hacker-news.firebaseio.com/v0/";
