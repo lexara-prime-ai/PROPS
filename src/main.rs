@@ -79,6 +79,24 @@ fn App(cx: Scope) -> Element {
     })
 }
 
+// Lazy Fetching Data
+async fn resolve_story(
+    full_story: UseRef<Option<StoryPageData>>,
+    preview_state: UseSharedState<PreviewState>,
+    story_id: i64,
+) {
+    if let Some(cached) = &*full_story.read() {
+        *preview_state.write() = PreviewState::Loaded(cached.clone());
+        return;
+    }
+
+    *preview_state.write() = PreviewState::Loading;
+    if let Ok(story) = get_story(story_id).await {
+        *preview_state.write() = PreviewState::Loaded(story.clone());
+        *full_story.write() = Some(story);
+    }
+}
+
 #[inline_props]
 fn StoryListing(cx: Scope, story: StoryItem) -> Element {
     let preview_state = use_shared_state::<PreviewState>(cx).unwrap();
@@ -92,6 +110,8 @@ fn StoryListing(cx: Scope, story: StoryItem) -> Element {
         id,
         ..
     } = story;
+
+    let full_story = use_ref(cx, || None);
 
     let url = url.as_deref().unwrap_or_default();
     let hostname = url
@@ -116,10 +136,8 @@ fn StoryListing(cx: Scope, story: StoryItem) -> Element {
             position: "relative",
             onmouseenter: move |_event| {
               // Implementation
-                *preview_state.write() = PreviewState::Loaded(StoryPageData {
-                    item: story.clone(),
-                    comments: vec![],
-                });
+                // If you return a future from an event handler, it will be run automatically
+                resolve_story(full_story.clone(), preview_state.clone(), *id)
             },
             div {
                 font_size: "1.5rem",
@@ -127,10 +145,7 @@ fn StoryListing(cx: Scope, story: StoryItem) -> Element {
                     href: url,
                     onfocus: move |_event| {
                         // Implementation
-                        *preview_state.write() = PreviewState::Loaded(StoryPageData {
-                            item: story.clone(),
-                            comments: vec![],
-                        });
+                        resolve_story(full_story.clone(), preview_state.clone(), *id)
                     },
                     "{title}"
                 }
@@ -162,7 +177,7 @@ fn StoryListing(cx: Scope, story: StoryItem) -> Element {
                 }
             }
         }
-    })
+})
 }
 
 fn Stories(cx: Scope) -> Element {
