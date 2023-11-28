@@ -166,20 +166,30 @@ fn StoryListing(cx: Scope, story: StoryItem) -> Element {
 }
 
 fn Stories(cx: Scope) -> Element {
-    render! {
-        StoryListing {
-            story: StoryItem {
-                id: 0,
-                title: "hello hacker news".to_string(),
-                url: None,
-                text: None,
-                by: "Author".to_string(),
-                score: 0,
-                descendants: 0,
-                time: chrono::Utc::now(),
-                kids: vec![],
-                r#type: "".to_string(),
+    // Fetch top 10 stories
+    let stories = use_future(cx, (), |_| get_stories(10));
+
+    // Check if future is resolved
+    match stories.value() {
+        Some(Ok(list)) => {
+            // if it is, render the stories
+            render! {
+                div {
+                    // Iterate over stories
+                    for story in list {
+                        // Render every story with the StoryListing component
+                        StoryListing { story: story.clone() }
+                    }
+                }
             }
+        }
+        Some(Err(err)) => {
+            // if there was an error, render the error
+            render! {"An error occured while fetching stories {err}"}
+        }
+        None => {
+            // if the future is not resolved yet, render a loading message
+            render! {"Loading items"}
         }
     }
 }
@@ -246,7 +256,9 @@ fn Comment(cx: Scope, comment: Comment) -> Element<'a> {
     }
 }
 
+///////////////////
 // Fetching data
+//////////////////
 use futures::future::join_all;
 
 pub static BASE_API_URL: &str = "https://hacker-news.firebaseio.com/v0/";
@@ -290,6 +302,7 @@ pub async fn get_story(id: i64) -> Result<StoryPageData, reqwest::Error> {
 }
 
 use async_recursion::async_recursion;
+use dioxus::html::div;
 
 #[async_recursion::async_recursion(? Send)]
 pub async fn get_comment_with_depth(id: i64, depth: i64) -> Result<Comment, reqwest::Error> {
